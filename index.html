@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý & Phân công Công việc - Phòng Kế hoạch Vật tư | PC Vũng Tàu</title>
+  <meta name="description" content="Hệ thống quản lý, phân công và sắp xếp công việc kiểu kéo thả cho Trưởng phòng Kế hoạch Vật tư - Công ty Điện lực Vũng Tàu (EVNHCMC)">
+  
+  <!-- Google Fonts: Be Vietnam Pro -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ========================================================================
+       APPLICATION HEADER
+       ======================================================================== -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="brand-section">
+        <img src="logo_evn.png" alt="Logo EVNHCMC" class="brand-logo" onerror="this.style.display='none'">
+        <div class="brand-titles">
+          <span class="brand-subtitle">CÔNG TY ĐIỆN LỰC VŨNG TÀU - EVNHCMC</span>
+          <h1 class="brand-main-title">
+            QUẢN LÝ CÔNG VIỆC PHÒNG KẾ HOẠCH VẬT TƯ
+            <span class="brand-badge">2026</span>
+          </h1>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Search -->
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Tìm việc, người phụ trách..." autocomplete="off">
+          <span class="search-clear" id="searchClear" title="Xóa tìm kiếm">✕</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <!-- Sync Status Button -->
+        <button class="btn btn-sync" id="syncConfigBtn" title="Trạng thái đồng bộ thời gian thực & Kết nối Google Sheet">
+          <span class="sync-status-dot dot-synced" id="syncStatusDot"></span>
+          <span id="syncStatusLabel">Tự động lưu</span>
+        </button>
+
+        <button class="btn btn-primary" id="createTaskBtn" title="Tạo công việc mới">
+          <span>➕</span>
+          <span>Thêm việc mới</span>
+        </button>
+
+        <button class="btn btn-success" id="saveBtn" title="Lưu toàn bộ dữ liệu phân công vào hệ thống">
+          <span>💾</span>
+          <span>Lưu dữ liệu</span>
+        </button>
+
+        <button class="btn btn-outline" id="exportBtn" title="Xuất dữ liệu ra file Excel / CSV">
+          <span>📥</span>
+          <span>Xuất dữ liệu</span>
+        </button>
+
+        <button class="btn btn-icon" id="resetBtn" title="Khôi phục dữ liệu gốc ban đầu từ Excel">
+          <span>🔄</span>
+        </button>
+
+        <button class="btn btn-outline" id="toggleSidebarBtn" title="Đóng / Mở Danh sách chờ">
+          <span>📑</span>
+          <span>DS Chờ</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Header Navigation Tabs -->
+    <div class="header-nav">
+      <nav class="view-tabs">
+        <button class="tab-btn active" id="tabStaff">
+          <span>👥</span>
+          <span>Xem theo Nhân viên</span>
+        </button>
+
+        <button class="tab-btn" id="tabCategory">
+          <span>📋</span>
+          <span>Xem theo Công việc</span>
+        </button>
+
+        <button class="tab-btn" id="tabDashboard">
+          <span>📊</span>
+          <span>Tổng quan & Thống kê</span>
+        </button>
+      </nav>
+
+      <!-- Quick KPI Tracker -->
+      <div class="quick-stats">
+        <div class="stat-pill" title="Tổng số công việc">
+          <span class="stat-dot" style="background: #3b82f6;"></span>
+          <span>Tổng: <strong id="quickTotal">0</strong></span>
+        </div>
+        <div class="stat-pill" title="Công việc đã giao nhân sự">
+          <span class="stat-dot" style="background: #10b981;"></span>
+          <span>Đã giao: <strong id="quickAssigned">0</strong></span>
+        </div>
+        <div class="stat-pill" title="Công việc đã hoàn tất">
+          <span class="stat-dot" style="background: #059669;"></span>
+          <span>Đã xong: <strong id="quickCompleted">0</strong></span>
+        </div>
+        <div class="stat-pill" title="Công việc chưa phân công / trong danh sách chờ">
+          <span class="stat-dot" style="background: #f59e0b;"></span>
+          <span>Chờ giao: <strong id="quickPending">0</strong></span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       MAIN APP CONTAINER (BOARD & STAGING SIDEBAR)
+       ======================================================================== -->
+  <div class="app-container">
+    <!-- Main Interactive Board Area -->
+    <main class="main-content" id="mainContent">
+      <!-- Injected by JavaScript based on active view -->
+    </main>
+
+    <!-- DANH SÁCH CHỜ (STAGING SIDEBAR) - AS SHOWN IN REFERENCE VIDEO -->
+    <aside class="staging-sidebar" id="stagingSidebar">
+      <div class="staging-header">
+        <div class="staging-title-wrap">
+          <h3 class="staging-title">DANH SÁCH CHỜ</h3>
+          <span class="staging-counter" id="stagingCounter">0</span>
+        </div>
+        <button class="btn btn-primary" id="sidebarCreateBtn" style="padding: 4px 10px; font-size: 12px;">
+          + Thêm mới
+        </button>
+      </div>
+
+      <div class="staging-body">
+        <div class="staging-dropzone" id="stagingDropzone">
+          <!-- Staged / unassigned task cards go here -->
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ========================================================================
+       TASK CREATION & EDITING MODAL
+       ======================================================================== -->
+  <div class="modal-backdrop" id="taskModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="taskModalTitle">➕ Thêm mới công việc</h3>
+        <button type="button" class="modal-close-btn" id="taskModalClose">&times;</button>
+      </div>
+
+      <form id="taskForm">
+        <div class="modal-body">
+          <input type="hidden" id="fieldTaskId">
+
+          <!-- Task Title -->
+          <div class="form-group">
+            <label class="form-label" for="fieldTitle">
+              Tên công việc <span class="required">*</span>
+            </label>
+            <input type="text" id="fieldTitle" class="form-control" placeholder="Nhập tóm tắt tên công việc..." required>
+          </div>
+
+          <!-- Task Detail -->
+          <div class="form-group">
+            <label class="form-label" for="fieldDetail">Chi tiết nội dung công việc</label>
+            <textarea id="fieldDetail" class="form-control" rows="3" placeholder="Chi tiết các bước thực hiện, văn bản liên quan..."></textarea>
+          </div>
+
+          <!-- Category / Group -->
+          <div class="form-group">
+            <label class="form-label" for="fieldCategory">
+              Nhóm loại công việc <span class="required">*</span>
+            </label>
+            <select id="fieldCategory" class="form-control" required>
+              <!-- Populated by JS -->
+            </select>
+          </div>
+
+          <!-- Assignee & Follower (2 cols) -->
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="fieldAssignee">Cán bộ phụ trách</label>
+              <select id="fieldAssignee" class="form-control">
+                <!-- Populated by JS -->
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="fieldFollower">Người theo dõi / Chỉ đạo</label>
+              <select id="fieldFollower" class="form-control">
+                <!-- Populated by JS -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Deadline, Status & Priority -->
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="fieldDeadline">Thời hạn hoàn thành</label>
+              <input type="text" id="fieldDeadline" class="form-control" placeholder="Ví dụ: 14/09/2026 hoặc 15/9">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="fieldStatus">Trạng thái tiến độ</label>
+              <select id="fieldStatus" class="form-control">
+                <option value="in_progress">● Đang thực hiện</option>
+                <option value="completed">✓ Đã hoàn tất</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="fieldPriority">Mức độ ưu tiên</label>
+            <select id="fieldPriority" class="form-control">
+              <option value="normal">Bình thường</option>
+              <option value="urgent">🔥 Khẩn cấp / Trọng tâm</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="deleteTaskBtn" style="margin-right: auto; color: #ef4444; border-color: #fecaca; display: none;">
+            🗑️ Xóa việc
+          </button>
+          <button type="button" class="btn btn-outline" id="taskModalCancel">Hủy bỏ</button>
+          <button type="submit" class="btn btn-primary" id="taskModalSubmit">
+            💾 Lưu công việc
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       CLOUD & GOOGLE SHEET REAL-TIME SYNC MODAL
+       ======================================================================== -->
+  <div class="modal-backdrop" id="syncModal">
+    <div class="modal-dialog sync-modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">☁️ Đồng bộ Dữ liệu Thời gian thực & Google Sheet</h3>
+        <button type="button" class="modal-close-btn" id="syncModalClose">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Status Card -->
+        <div class="sync-status-card" id="syncStatusCard">
+          <div class="sync-status-icon" id="syncStatusIcon">⚡</div>
+          <div class="sync-status-info">
+            <h4 id="syncStatusTitle">Tự động lưu tức thì (Local)</h4>
+            <p id="syncStatusDesc">Mọi thao tác kéo thả, thêm mới hay chỉnh sửa đều được tự động lưu ngay vào trình duyệt. Kể cả khi tải lại trang (F5) hoặc đóng tab, dữ liệu vẫn được bảo toàn 100%.</p>
+          </div>
+        </div>
+
+        <!-- Google Sheet Link & Info -->
+        <div class="sync-info-box">
+          <div class="sync-info-row">
+            <span class="sync-info-label">📊 File Google Sheet:</span>
+            <a href="https://docs.google.com/spreadsheets/d/1Pa1titRZwwikbXyBhniHgZr-lX2P5D12jdMUbxHw-ck/edit?usp=sharing" target="_blank" rel="noopener" class="sync-sheet-link">
+              Công tác KHVT (Google Sheet) ↗
+            </a>
+          </div>
+          <div class="sync-info-row">
+            <span class="sync-info-label">🌐 Web App Vercel:</span>
+            <a href="https://khvtpcvt-phanviec.vercel.app" target="_blank" rel="noopener" class="sync-sheet-link">
+              khvtpcvt-phanviec.vercel.app ↗
+            </a>
+          </div>
+          <div class="sync-info-row">
+            <span class="sync-info-label">🕒 Lần lưu cuối:</span>
+            <span id="syncLastTime" style="font-weight: 600; color: #1e293b;">Vừa xong</span>
+          </div>
+        </div>
+
+        <!-- Web App URL Input for Google Apps Script -->
+        <div class="form-group" style="margin-top: 14px;">
+          <label class="form-label" for="fieldSyncUrl">
+            🔗 Đường dẫn Google Apps Script Web App (API URL):
+          </label>
+          <input type="url" id="fieldSyncUrl" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
+          <small class="form-hint">Dán URL Web App triển khai từ Google Sheet để kích hoạt đồng bộ 2 chiều qua Cloud giữa tất cả các máy.</small>
+        </div>
+
+        <!-- Shareable URL -->
+        <div class="form-group" id="shareUrlGroup" style="display: none;">
+          <label class="form-label">🚀 Link chia sẻ cho nhân sự (Tự động kết nối Cloud):</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="shareUrlInput" class="form-control" readonly style="font-size: 12px; background: #f1f5f9;">
+            <button type="button" class="btn btn-outline" id="btnCopyShareUrl" style="white-space: nowrap;">📋 Sao chép</button>
+          </div>
+        </div>
+
+        <!-- Guide collapsibles -->
+        <details class="sync-guide-details">
+          <summary><strong>📖 Hướng dẫn cấu hình Google Apps Script (1 phút)</strong></summary>
+          <ol class="sync-steps-list">
+            <li>Mở file <a href="https://docs.google.com/spreadsheets/d/1Pa1titRZwwikbXyBhniHgZr-lX2P5D12jdMUbxHw-ck/edit?usp=sharing" target="_blank">Google Sheet Công tác KHVT</a>.</li>
+            <li>Vào <strong>Tiện ích mở rộng (Extensions)</strong> &gt; <strong>Apps Script</strong>.</li>
+            <li>Dán toàn bộ mã từ file <code>google_apps_script.js</code> trong mã nguồn vào.</li>
+            <li>Bấm <strong>Triển khai (Deploy)</strong> &gt; <strong>Triển khai mới (New deployment)</strong>:
+              <ul>
+                <li>Loại: <em>Ứng dụng web (Web app)</em></li>
+                <li>Thực thi dưới dạng: <em>Tôi (Me)</em></li>
+                <li>Ai có quyền truy cập: <strong>Bất kỳ ai (Anyone)</strong></li>
+              </ul>
+            </li>
+            <li>Copy URL Web App kết thúc bằng <code>/exec</code> và dán vào ô trên, rồi bấm <strong>Lưu &amp; Đồng bộ ngay</strong>.</li>
+          </ol>
+        </details>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" id="btnSyncNow">🔄 Đồng bộ ngay</button>
+        <button type="button" class="btn btn-primary" id="btnSaveSyncConfig">💾 Lưu thiết lập</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script src="app_data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

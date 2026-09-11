@@ -1,0 +1,15 @@
+# Ignore video and large binary files
+*.mp4
+*.xlsx
+
+# Ignore scratch text and search dump files
+*.txt
+*.json
+!vercel.json
+
+# System and cache files
+.DS_Store
+Thumbs.db
+.vercel
+scratch/
+__pycache__/
