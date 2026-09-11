@@ -201,3 +201,21 @@ function createOutput(dataObj, e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
+
+/**
+ * Hàm kiểm tra / tạo sheet ngay lập tức từ trình soạn thảo Apps Script (Tùy chọn)
+ * Bạn có thể chọn hàm này trong danh sách hàm trên thanh công cụ và bấm "Chạy" (Run)
+ * để tạo và điền ngay sheet "Phân công trực tuyến" mà không cần đợi thao tác từ web.
+ */
+function testTaoSheetPhanCong() {
+  var props = PropertiesService.getScriptProperties();
+  var savedJson = props.getProperty(STORAGE_PROP_KEY);
+  if (savedJson) {
+    var data = JSON.parse(savedJson);
+    syncToSpreadsheet(data);
+    Logger.log('Đã tạo và cập nhật sheet "Phân công trực tuyến" thành công với ' + (data.tasks ? data.tasks.length : 0) + ' công việc!');
+  } else {
+    Logger.log('Chưa có dữ liệu trong Script Properties.');
+  }
+}
+
