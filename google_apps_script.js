@@ -67,13 +67,19 @@ function doPost(e) {
     }
 
     var parsed = JSON.parse(payloadStr);
+
+    // BẢO VỆ DỮ LIỆU: Chỉ ghi đè nếu có danh sách tasks hợp lệ
+    if (!parsed || !parsed.tasks || !Array.isArray(parsed.tasks) || parsed.tasks.length === 0) {
+      return createOutput({ status: 'error', message: 'Dữ liệu không hợp lệ hoặc thiếu danh sách công việc' }, e);
+    }
+
     parsed.lastModified = new Date().toISOString();
 
     // 1. Lưu siêu tốc vào Script Properties để phục vụ truy xuất tức thì
     var props = PropertiesService.getScriptProperties();
     props.setProperty(STORAGE_PROP_KEY, JSON.stringify(parsed));
 
-    // 2. Đồng bộ ngược lại các hàng trong Google Sheet (nếu có sheet công việc)
+    // 2. Đồng bộ ngược lại các hàng trong Google Sheet tab "Phân công trực tuyến"
     try {
       syncToSpreadsheet(parsed);
     } catch (sheetErr) {
@@ -97,8 +103,22 @@ function doPost(e) {
 function syncToSpreadsheet(data) {
   if (!data || !data.tasks || !Array.isArray(data.tasks)) return;
 
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) return;
+  var ss = null;
+  try {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  } catch (err) {
+    ss = null;
+  }
+  
+  // Fallback mở trực tiếp bằng ID nếu script chạy ở ngữ cảnh độc lập
+  if (!ss) {
+    try {
+      ss = SpreadsheetApp.openById('1Pa1titRZwwikbXyBhniHgZr-lX2P5D12jdMUbxHw-ck');
+    } catch (openErr) {
+      console.warn('Không thể mở Google Sheet qua ID:', openErr);
+      return;
+    }
+  }
 
   var TARGET_SHEET_NAME = 'Phân công trực tuyến';
   var sheet = ss.getSheetByName(TARGET_SHEET_NAME);

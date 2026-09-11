@@ -24,7 +24,9 @@
     cloudApiUrl: DEFAULT_CLOUD_API,
     syncStatus: 'synced', // 'synced' | 'syncing' | 'local' | 'error'
     lastSavedAt: null,
-    syncDebounceTimer: null
+    syncDebounceTimer: null,
+    hasUnsavedLocalChanges: false,
+    initialCloudSyncDone: false
   };
 
   // DOM Elements
@@ -112,19 +114,19 @@
     populateFormSelects();
     render();
     updateQuickStats();
-    updateSyncUI(state.cloudApiUrl ? 'synced' : 'local');
+    updateSyncUI('syncing', 'Đang kết nối máy chủ...');
 
-    // 2. Initial cloud fetch if configured
+    // 2. Initial cloud fetch immediately on page open
     if (state.cloudApiUrl) {
-      setTimeout(() => pullFromCloud(false), 800);
+      pullFromCloud(false);
     }
 
-    // 3. Periodic cloud polling (every 10s)
+    // 3. Periodic cloud polling (every 5s) when tab is active and user is not editing
     setInterval(() => {
-      if (state.cloudApiUrl && !document.hidden) {
+      if (state.cloudApiUrl && !document.hidden && !state.hasUnsavedLocalChanges && !state.draggedTaskId && !state.editingTaskId) {
         pullFromCloud(false);
       }
-    }, 10000);
+    }, 5000);
   }
 
   function mergeEmployeeMetadata() {
@@ -152,7 +154,8 @@
         state.categories = parsed.categories || window.INITIAL_APP_DATA.categories;
         state.employees = parsed.employees || window.INITIAL_APP_DATA.employees;
         state.tasks = parsed.tasks || window.INITIAL_APP_DATA.tasks;
-        state.lastSavedAt = parsed.savedAt || parsed.lastModified || new Date().toISOString();
+        state.lastSavedAt = parsed.savedAt || parsed.lastModified || 0;
+        state.hasUnsavedLocalChanges = false;
 
         mergeEmployeeMetadata();
         return;
@@ -161,7 +164,7 @@
       }
     }
 
-    // Default to initial data
+    // Default to initial data for fresh session
     if (window.INITIAL_APP_DATA) {
       state.categories = JSON.parse(JSON.stringify(window.INITIAL_APP_DATA.categories));
       state.employees = JSON.parse(JSON.stringify(window.INITIAL_APP_DATA.employees));
@@ -175,7 +178,10 @@
         }
       });
 
-      saveData(false);
+      // Fresh session: set timestamp to 0 so cloud data ALWAYS takes precedence
+      state.lastSavedAt = 0;
+      state.hasUnsavedLocalChanges = false;
+      // Note: Do NOT call saveData here and do NOT push to cloud! Wait for cloud fetch!
     }
   }
 
@@ -200,11 +206,12 @@
 
     // 2. Real-time Cloud Sync to Google Apps Script / Google Sheet
     if (state.cloudApiUrl && !skipCloud) {
-      updateSyncUI('syncing', 'Đang lưu...');
+      state.hasUnsavedLocalChanges = true;
+      updateSyncUI('syncing', 'Đang lưu máy chủ...');
       clearTimeout(state.syncDebounceTimer);
       state.syncDebounceTimer = setTimeout(() => {
         pushToCloud(payload);
-      }, 500);
+      }, 400);
     } else {
       updateSyncUI(state.cloudApiUrl ? 'synced' : 'local');
     }
@@ -214,18 +221,35 @@
     if (!state.cloudApiUrl) return;
     updateSyncUI('syncing', 'Đang lưu máy chủ...');
 
+    const payloadStr = JSON.stringify(payload);
+
+    // 1. Thử gửi POST với fetch thông thường (Content-Type: text/plain hỗ trợ CORS)
     fetch(state.cloudApiUrl, {
       method: 'POST',
-      mode: 'no-cors',
       headers: {
         'Content-Type': 'text/plain;charset=utf-8'
       },
-      body: JSON.stringify(payload)
+      body: payloadStr
     }).then(() => {
+      state.hasUnsavedLocalChanges = false;
       updateSyncUI('synced', 'Đã đồng bộ máy chủ');
+      console.log('Đồng bộ máy chủ thành công lúc:', new Date().toLocaleTimeString());
     }).catch(err => {
-      console.warn('Cloud sync error (saved locally):', err);
-      updateSyncUI('local', 'Đã lưu máy');
+      // 2. Fallback sang no-cors nếu trình duyệt báo lỗi redirect CORS
+      fetch(state.cloudApiUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain'
+        },
+        body: payloadStr
+      }).then(() => {
+        state.hasUnsavedLocalChanges = false;
+        updateSyncUI('synced', 'Đã đồng bộ máy chủ');
+      }).catch(e => {
+        console.warn('Lỗi đồng bộ máy chủ:', e);
+        updateSyncUI('local', 'Đã lưu máy (chờ kết nối)');
+      });
     });
   }
 
@@ -236,8 +260,21 @@
       return;
     }
 
-    if (manual) updateSyncUI('syncing', 'Đang tải...');
+    if (manual) updateSyncUI('syncing', 'Đang tải máy chủ...');
 
+    // Thử gọi fetch trực tiếp trước để có tốc độ cao nhất
+    fetch(`${state.cloudApiUrl}?_t=${Date.now()}`)
+      .then(res => res.json())
+      .then(response => {
+        handleCloudResponse(response, manual);
+      })
+      .catch(() => {
+        // Nếu fetch bị chặn cross-origin, fallback dùng JSONP (chắc chắn thành công 100%)
+        pullViaJsonp(manual);
+      });
+  }
+
+  function pullViaJsonp(manual) {
     const callbackName = 'khvt_sync_cb_' + (++jsonpCounter) + '_' + Date.now();
     const script = document.createElement('script');
     const separator = state.cloudApiUrl.includes('?') ? '&' : '?';
@@ -259,41 +296,7 @@
 
     window[callbackName] = function(response) {
       cleanup();
-      if (!response || response.status !== 'success' || !response.hasData || !response.data) {
-        if (manual) notify('info', 'Dữ liệu trên máy của bạn hiện là mới nhất');
-        updateSyncUI('synced', 'Đã đồng bộ máy chủ');
-        return;
-      }
-
-      const remoteData = response.data;
-      const remoteTime = new Date(remoteData.lastModified || remoteData.savedAt || 0).getTime();
-      const localTime = new Date(state.lastSavedAt || 0).getTime();
-
-      // Only update if remote is newer or manual sync clicked
-      if (remoteTime > localTime || manual) {
-        if (remoteData.tasks && Array.isArray(remoteData.tasks)) {
-          state.tasks = remoteData.tasks;
-        }
-        if (remoteData.categories && Array.isArray(remoteData.categories)) {
-          state.categories = remoteData.categories;
-        }
-        if (remoteData.employees && Array.isArray(remoteData.employees)) {
-          state.employees = remoteData.employees;
-          mergeEmployeeMetadata();
-        }
-
-        state.lastSavedAt = remoteData.lastModified || remoteData.savedAt || new Date().toISOString();
-        saveData(false, true); // save locally, skip pushing again
-        render();
-        updateQuickStats();
-        updateSyncUI('synced', 'Đã đồng bộ máy chủ');
-
-        if (manual) {
-          notify('success', 'Đã cập nhật dữ liệu mới nhất từ máy chủ thành công!');
-        }
-      } else {
-        updateSyncUI('synced', 'Đã đồng bộ máy chủ');
-      }
+      handleCloudResponse(response, manual);
     };
 
     script.onerror = function() {
@@ -304,6 +307,71 @@
     };
 
     document.head.appendChild(script);
+  }
+
+  function handleCloudResponse(response, manual = false) {
+    if (!response || response.status !== 'success' || !response.hasData || !response.data) {
+      state.initialCloudSyncDone = true;
+      if (manual) notify('info', 'Dữ liệu trên máy của bạn hiện là mới nhất');
+      updateSyncUI('synced', 'Đã đồng bộ máy chủ');
+      return;
+    }
+
+    const remoteData = response.data;
+    if (!remoteData.tasks || !Array.isArray(remoteData.tasks) || remoteData.tasks.length === 0) {
+      state.initialCloudSyncDone = true;
+      return;
+    }
+
+    const remoteTime = new Date(remoteData.lastModified || remoteData.savedAt || 0).getTime();
+    const localTime = state.lastSavedAt ? new Date(state.lastSavedAt).getTime() : 0;
+
+    // ĐIỀU KIỆN ÁP DỤNG DỮ LIỆU TỪ MÁY CHỦ:
+    // 1. Bấm làm mới thủ công (manual = true)
+    // 2. Lần đầu tải trang web và chưa có chỉnh sửa mới trên máy (!state.initialCloudSyncDone && !state.hasUnsavedLocalChanges)
+    // 3. Máy chưa có dữ liệu (state.lastSavedAt === 0)
+    // 4. Máy chủ có bản ghi mới hơn thời gian lưu trên máy (remoteTime > localTime && !state.hasUnsavedLocalChanges)
+    const shouldApply = manual ||
+                        (!state.initialCloudSyncDone && !state.hasUnsavedLocalChanges) ||
+                        !state.lastSavedAt ||
+                        state.lastSavedAt === 0 ||
+                        (remoteTime > localTime && !state.hasUnsavedLocalChanges);
+
+    state.initialCloudSyncDone = true;
+
+    if (shouldApply) {
+      state.tasks = remoteData.tasks;
+      if (remoteData.categories && Array.isArray(remoteData.categories)) {
+        state.categories = remoteData.categories;
+      }
+      if (remoteData.employees && Array.isArray(remoteData.employees)) {
+        state.employees = remoteData.employees;
+        mergeEmployeeMetadata();
+      }
+
+      state.lastSavedAt = remoteData.lastModified || remoteData.savedAt || new Date().toISOString();
+      state.hasUnsavedLocalChanges = false;
+
+      // Lưu đệm vào localStorage để lần sau mở nhanh, TUYỆT ĐỐI KHÔNG gửi ngược lên đè máy chủ
+      const cached = {
+        categories: state.categories,
+        employees: state.employees,
+        tasks: state.tasks,
+        savedAt: state.lastSavedAt,
+        lastModified: state.lastSavedAt
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+
+      render();
+      updateQuickStats();
+      updateSyncUI('synced', 'Đã đồng bộ máy chủ');
+
+      if (manual) {
+        notify('success', 'Đã cập nhật dữ liệu mới nhất từ máy chủ thành công!');
+      }
+    } else {
+      updateSyncUI('synced', 'Đã đồng bộ máy chủ');
+    }
   }
 
   function updateSyncUI(status, customLabel) {
