@@ -35,6 +35,7 @@
   --radius-full: 9999px;
   
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --header-height: 114px;
 }
 
 * {
@@ -48,7 +49,7 @@ body {
   background-color: var(--bg-main);
   color: var(--text-main);
   line-height: 1.5;
-  overflow-x: hidden;
+  overflow-x: clip;
   min-height: 100vh;
 }
 
@@ -298,14 +299,15 @@ body {
    ========================================================================== */
 .app-container {
   display: flex;
-  min-height: calc(100vh - 110px);
+  min-height: calc(100vh - var(--header-height, 114px));
   position: relative;
+  align-items: flex-start;
 }
 
 .main-content {
   flex: 1;
   padding: 20px 24px;
-  overflow-y: auto;
+  min-width: 0;
   transition: margin-right 0.3s ease;
 }
 
@@ -318,15 +320,23 @@ body {
   border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  transition: var(--transition);
+  transition: width 0.25s ease, box-shadow 0.2s ease;
   flex-shrink: 0;
   box-shadow: -2px 0 8px rgba(0,0,0,0.03);
+  position: -webkit-sticky;
+  position: sticky;
+  top: var(--header-height, 114px);
+  height: calc(100vh - var(--header-height, 114px));
+  max-height: calc(100vh - var(--header-height, 114px));
+  align-self: flex-start;
+  z-index: 40;
 }
 
 .staging-sidebar.collapsed {
   width: 0;
   overflow: hidden;
   border-left: none;
+  box-shadow: none;
 }
 
 .staging-header {
@@ -336,6 +346,7 @@ body {
   align-items: center;
   justify-content: space-between;
   background: #f8fafc;
+  flex-shrink: 0;
 }
 
 .staging-title-wrap {

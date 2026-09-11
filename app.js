@@ -114,6 +114,8 @@
     populateFormSelects();
     render();
     updateQuickStats();
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
     updateSyncUI('syncing', 'Đang kết nối máy chủ...');
 
     // 2. Initial cloud fetch immediately on page open
@@ -127,6 +129,16 @@
         pullFromCloud(false);
       }
     }, 5000);
+  }
+
+  function updateHeaderHeight() {
+    const header = document.querySelector('.app-header');
+    if (header) {
+      const h = header.getBoundingClientRect().height;
+      if (h > 0) {
+        document.documentElement.style.setProperty('--header-height', `${Math.round(h)}px`);
+      }
+    }
   }
 
   function mergeEmployeeMetadata() {
