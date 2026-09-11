@@ -91,7 +91,8 @@ function doPost(e) {
 }
 
 /**
- * Đồng bộ dữ liệu phân công ngược vào Google Sheet
+ * Đồng bộ dữ liệu phân công sang một sheet riêng biệt ("Phân công trực tuyến")
+ * Giữ nguyên 100% sheet gốc ban đầu, không làm xáo trộn thứ tự hay cấu trúc cũ
  */
 function syncToSpreadsheet(data) {
   if (!data || !data.tasks || !Array.isArray(data.tasks)) return;
@@ -99,37 +100,90 @@ function syncToSpreadsheet(data) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) return;
 
-  var sheet = ss.getSheets()[0]; // Sheet đầu tiên
-  if (!sheet) return;
+  var TARGET_SHEET_NAME = 'Phân công trực tuyến';
+  var sheet = ss.getSheetByName(TARGET_SHEET_NAME);
+  
+  // Nếu chưa có sheet riêng thì tự động tạo mới
+  if (!sheet) {
+    sheet = ss.insertSheet(TARGET_SHEET_NAME);
+  }
 
-  var values = sheet.getDataRange().getValues();
-  if (values.length < 2) return;
+  // Tiêu đề các cột
+  var headers = [
+    'STT / Mã việc',
+    'Tên công việc',
+    'Nội dung chi tiết',
+    'Nhóm loại công việc',
+    'Cán bộ phụ trách',
+    'Người theo dõi / Chỉ đạo',
+    'Thời hạn hoàn thành',
+    'Trạng thái',
+    'Mức độ ưu tiên',
+    'Cập nhật lần cuối'
+  ];
 
-  // Cột D (index 3): Cán bộ phụ trách
-  // Cột E (index 4): Người theo dõi
-  // Cột F (index 5): Thời hạn hoàn thành
-  // Tạo map id -> task
-  var taskMap = {};
-  data.tasks.forEach(function(t) {
-    if (t.stt) taskMap[String(t.stt).trim()] = t;
-    if (t.id) taskMap[String(t.id).trim()] = t;
+  // Chuẩn bị dữ liệu các hàng
+  var rows = [];
+  var lastMod = data.lastModified ? Utilities.formatDate(new Date(data.lastModified), "Asia/Ho_Chi_Minh", "dd/MM/yyyy HH:mm:ss") : Utilities.formatDate(new Date(), "Asia/Ho_Chi_Minh", "dd/MM/yyyy HH:mm:ss");
+
+  data.tasks.forEach(function(t, idx) {
+    var statusText = t.status === 'completed' ? '✓ Đã hoàn tất' : '● Đang thực hiện';
+    var priorityText = t.priority === 'urgent' ? '🔥 Khẩn cấp' : 'Bình thường';
+    var assignee = t.in_staging ? 'Chưa phân công (Danh sách chờ)' : (t.assignee_text || 'Chưa phân công');
+
+    rows.push([
+      t.stt || (idx + 1),
+      t.title || '',
+      t.detail || '',
+      t.category || '',
+      assignee,
+      t.follower_text || '',
+      t.deadline || '',
+      statusText,
+      priorityText,
+      lastMod
+    ]);
   });
 
-  for (var r = 1; r < values.length; r++) {
-    var stt = String(values[r][0] || '').trim();
-    var task = taskMap[stt];
-    if (task) {
-      if (task.assignee_text) {
-        sheet.getRange(r + 1, 4).setValue(task.assignee_text);
-      }
-      if (task.follower_text) {
-        sheet.getRange(r + 1, 5).setValue(task.follower_text);
-      }
-      if (task.deadline) {
-        sheet.getRange(r + 1, 6).setValue(task.deadline);
-      }
-    }
+  // Xóa dữ liệu cũ của sheet riêng này và ghi toàn bộ dữ liệu mới cập nhật
+  sheet.clearContents();
+
+  // Ghi dòng tiêu đề
+  var headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setValues([headers]);
+  headerRange.setBackground('#003399'); // Màu xanh EVN
+  headerRange.setFontColor('#ffffff');
+  headerRange.setFontWeight('bold');
+  headerRange.setHorizontalAlignment('center');
+  headerRange.setVerticalAlignment('middle');
+  sheet.setRowHeight(1, 36);
+
+  // Ghi các hàng dữ liệu
+  if (rows.length > 0) {
+    var dataRange = sheet.getRange(2, 1, rows.length, headers.length);
+    dataRange.setValues(rows);
+    dataRange.setVerticalAlignment('middle');
+    dataRange.setWrap(true);
+
+    // Căn giữa cho cột STT, Thời hạn, Trạng thái, Ưu tiên, Ngày giờ
+    sheet.getRange(2, 1, rows.length, 1).setHorizontalAlignment('center');
+    sheet.getRange(2, 7, rows.length, 4).setHorizontalAlignment('center');
   }
+
+  // Căn chỉnh độ rộng cột cơ bản
+  sheet.setColumnWidth(1, 100);  // STT / Mã việc
+  sheet.setColumnWidth(2, 280);  // Tên công việc
+  sheet.setColumnWidth(3, 380);  // Nội dung chi tiết
+  sheet.setColumnWidth(4, 200);  // Nhóm công tác
+  sheet.setColumnWidth(5, 200);  // Phụ trách
+  sheet.setColumnWidth(6, 180);  // Theo dõi
+  sheet.setColumnWidth(7, 130);  // Thời hạn
+  sheet.setColumnWidth(8, 130);  // Trạng thái
+  sheet.setColumnWidth(9, 120);  // Ưu tiên
+  sheet.setColumnWidth(10, 160); // Cập nhật lần cuối
+
+  // Cố định dòng tiêu đề
+  sheet.setFrozenRows(1);
 }
 
 /**

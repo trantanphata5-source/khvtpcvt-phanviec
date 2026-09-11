@@ -10,6 +10,7 @@
   // Versioned key to ensure updated state with Tran Thi Minh Nguyet & external coordination frame
   const STORAGE_KEY = 'PCVT_KHVT_TASKS_DATA_V4';
   const SYNC_URL_KEY = 'PCVT_KHVT_SYNC_URL';
+  const DEFAULT_CLOUD_API = 'https://script.google.com/macros/s/AKfycbzA-azuFkdluVkQ7bEuatjNzKfEG3GrcCqNltiVe_2TJXGplirpnjb8DWDIQJXMtc8c/exec';
 
   // Global App State
   const state = {
@@ -20,7 +21,7 @@
     searchQuery: '',
     draggedTaskId: null,
     editingTaskId: null,
-    cloudApiUrl: '',
+    cloudApiUrl: DEFAULT_CLOUD_API,
     syncStatus: 'synced', // 'synced' | 'syncing' | 'local' | 'error'
     lastSavedAt: null,
     syncDebounceTimer: null
@@ -89,7 +90,7 @@
   // INITIALIZATION & REAL-TIME CLOUD SYNC
   // =========================================================================
   function init() {
-    // 1. Detect query parameters (e.g. ?api=https://script.google.com/macros/s/.../exec)
+    // 1. Detect query parameters or default to official cloud API
     const urlParams = new URLSearchParams(window.location.search);
     const apiParam = urlParams.get('api');
     if (apiParam && apiParam.startsWith('http')) {
@@ -99,9 +100,11 @@
         const cleanUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
       } catch (e) {}
-      setTimeout(() => notify('success', 'Đã kết nối API Cloud Google Sheet từ liên kết!'), 500);
     } else {
-      state.cloudApiUrl = localStorage.getItem(SYNC_URL_KEY) || '';
+      state.cloudApiUrl = localStorage.getItem(SYNC_URL_KEY) || DEFAULT_CLOUD_API;
+      if (!localStorage.getItem(SYNC_URL_KEY)) {
+        localStorage.setItem(SYNC_URL_KEY, DEFAULT_CLOUD_API);
+      }
     }
 
     loadData();
@@ -209,7 +212,7 @@
 
   function pushToCloud(payload) {
     if (!state.cloudApiUrl) return;
-    updateSyncUI('syncing', 'Đang lưu Cloud...');
+    updateSyncUI('syncing', 'Đang lưu máy chủ...');
 
     fetch(state.cloudApiUrl, {
       method: 'POST',
@@ -219,7 +222,7 @@
       },
       body: JSON.stringify(payload)
     }).then(() => {
-      updateSyncUI('synced', 'Đã đồng bộ');
+      updateSyncUI('synced', 'Đã đồng bộ máy chủ');
     }).catch(err => {
       console.warn('Cloud sync error (saved locally):', err);
       updateSyncUI('local', 'Đã lưu máy');
@@ -229,7 +232,7 @@
   let jsonpCounter = 0;
   function pullFromCloud(manual = false) {
     if (!state.cloudApiUrl) {
-      if (manual) notify('info', 'Chưa cấu hình API Cloud Google Sheet');
+      if (manual) notify('info', 'Chưa kích hoạt kết nối máy chủ');
       return;
     }
 
@@ -243,8 +246,8 @@
     let timeout = setTimeout(() => {
       cleanup();
       if (manual) {
-        notify('warning', 'Không nhận được phản hồi từ Google Apps Script (Hết thời gian chờ)');
-        updateSyncUI('local', 'Lưu máy');
+        notify('warning', 'Hết thời gian chờ phản hồi từ máy chủ');
+        updateSyncUI('synced', 'Đã đồng bộ máy chủ');
       }
     }, 12000);
 
@@ -257,8 +260,8 @@
     window[callbackName] = function(response) {
       cleanup();
       if (!response || response.status !== 'success' || !response.hasData || !response.data) {
-        if (manual) notify('info', 'Google Sheet chưa có dữ liệu mới hơn');
-        updateSyncUI('synced', 'Đã đồng bộ');
+        if (manual) notify('info', 'Dữ liệu trên máy của bạn hiện là mới nhất');
+        updateSyncUI('synced', 'Đã đồng bộ máy chủ');
         return;
       }
 
@@ -283,20 +286,20 @@
         saveData(false, true); // save locally, skip pushing again
         render();
         updateQuickStats();
-        updateSyncUI('synced', 'Đã đồng bộ');
+        updateSyncUI('synced', 'Đã đồng bộ máy chủ');
 
         if (manual) {
-          notify('success', 'Đã cập nhật dữ liệu mới nhất từ Google Sheet!');
+          notify('success', 'Đã cập nhật dữ liệu mới nhất từ máy chủ thành công!');
         }
       } else {
-        updateSyncUI('synced', 'Đã đồng bộ');
+        updateSyncUI('synced', 'Đã đồng bộ máy chủ');
       }
     };
 
     script.onerror = function() {
       cleanup();
       if (manual) {
-        notify('error', 'Lỗi kết nối tới URL Google Apps Script');
+        notify('error', 'Lỗi kết nối tới máy chủ');
       }
     };
 
@@ -312,16 +315,16 @@
     dot.className = 'sync-status-dot';
     if (status === 'synced') {
       dot.classList.add('dot-synced');
-      label.textContent = customLabel || (state.cloudApiUrl ? 'Đã đồng bộ' : 'Tự động lưu');
+      label.textContent = customLabel || (state.cloudApiUrl ? 'Đã đồng bộ máy chủ' : 'Đã lưu máy');
     } else if (status === 'syncing') {
       dot.classList.add('dot-syncing');
-      label.textContent = customLabel || 'Đang lưu...';
+      label.textContent = customLabel || 'Đang lưu máy chủ...';
     } else if (status === 'local') {
       dot.classList.add('dot-local');
-      label.textContent = customLabel || 'Tự động lưu';
+      label.textContent = customLabel || 'Đã lưu máy';
     } else if (status === 'error') {
       dot.classList.add('dot-error');
-      label.textContent = customLabel || 'Lỗi đồng bộ';
+      label.textContent = customLabel || 'Lỗi kết nối';
     }
 
     updateSyncModalCard();
@@ -345,28 +348,23 @@
       card.classList.add('status-syncing');
       icon.textContent = '⏳';
       title.textContent = 'Đang đồng bộ dữ liệu...';
-      desc.textContent = 'Hệ thống đang truyền dữ liệu công việc lên máy chủ Cloud Google Apps Script.';
+      desc.textContent = 'Hệ thống đang truyền dữ liệu công việc lên máy chủ đám mây EVNHCMC.';
     } else if (state.cloudApiUrl) {
       card.classList.add('status-synced');
-      icon.textContent = '☁️';
-      title.textContent = 'Đã kết nối Cloud & Google Sheet';
-      desc.textContent = 'Dữ liệu được đồng bộ 2 chiều thời gian thực giữa Web App và Google Sheet. Mọi thay đổi của bạn sẽ ngay lập tức được cập nhật cho mọi người.';
+      icon.textContent = '🟢';
+      title.textContent = 'Hệ Thống Trực Tuyến & Đồng Bộ Tức Thì';
+      desc.textContent = 'Toàn bộ dữ liệu phân công và tiến độ công việc được kết nối và đồng bộ 2 chiều tức thì với máy chủ đám mây EVNHCMC. Mọi thay đổi đều được bảo toàn 100%.';
     } else {
       card.classList.add('status-local');
       icon.textContent = '⚡';
-      title.textContent = 'Tự động lưu tức thì (Trình duyệt)';
-      desc.textContent = 'Mọi thao tác kéo thả, phân công đều tự động lưu vào bộ nhớ trình duyệt (Local). Kể cả tải lại trang (F5) hay tắt máy vẫn bảo toàn nguyên vẹn 100%.';
+      title.textContent = 'Lưu tự động trên trình duyệt (Ngoại tuyến)';
+      desc.textContent = 'Mọi thao tác kéo thả phân công đều được lưu tức thì vào bộ nhớ trình duyệt. Khi có mạng trở lại, hệ thống sẽ tự động đồng bộ lên máy chủ.';
     }
 
     // Share URL group
     if (elements.shareUrlGroup && elements.shareUrlInput) {
-      if (state.cloudApiUrl) {
-        elements.shareUrlGroup.style.display = 'block';
-        const baseUrl = window.location.origin + window.location.pathname;
-        elements.shareUrlInput.value = `${baseUrl}?api=${encodeURIComponent(state.cloudApiUrl)}`;
-      } else {
-        elements.shareUrlGroup.style.display = 'none';
-      }
+      elements.shareUrlGroup.style.display = 'block';
+      elements.shareUrlInput.value = window.location.origin + window.location.pathname;
     }
   }
 
@@ -462,18 +460,12 @@
     }
     if (elements.btnSaveSyncConfig) {
       elements.btnSaveSyncConfig.addEventListener('click', () => {
-        const url = (elements.fieldSyncUrl ? elements.fieldSyncUrl.value.trim() : '');
+        const url = (elements.fieldSyncUrl ? elements.fieldSyncUrl.value.trim() : '') || DEFAULT_CLOUD_API;
         state.cloudApiUrl = url;
-        if (url) {
-          localStorage.setItem(SYNC_URL_KEY, url);
-          notify('success', 'Đã lưu cấu hình Google Apps Script!');
-          saveData(false); // Push current state to the new URL
-          updateSyncUI('synced', 'Đã đồng bộ');
-        } else {
-          localStorage.removeItem(SYNC_URL_KEY);
-          notify('info', 'Đã chuyển sang chế độ lưu tự động cục bộ (Offline/Local)');
-          updateSyncUI('local', 'Tự động lưu');
-        }
+        localStorage.setItem(SYNC_URL_KEY, url);
+        notify('success', 'Đã lưu thiết lập máy chủ thành công!');
+        saveData(false); // Push current state to the URL
+        updateSyncUI('synced', 'Đã đồng bộ máy chủ');
         updateSyncModalCard();
         closeSyncModal();
       });

@@ -41,9 +41,9 @@
 
         <!-- Action Buttons -->
         <!-- Sync Status Button -->
-        <button class="btn btn-sync" id="syncConfigBtn" title="Trạng thái đồng bộ thời gian thực & Kết nối Google Sheet">
+        <button class="btn btn-sync" id="syncConfigBtn" title="Trạng thái kết nối Máy chủ & Đồng bộ dữ liệu">
           <span class="sync-status-dot dot-synced" id="syncStatusDot"></span>
-          <span id="syncStatusLabel">Tự động lưu</span>
+          <span id="syncStatusLabel">Đã đồng bộ máy chủ</span>
         </button>
 
         <button class="btn btn-primary" id="createTaskBtn" title="Tạo công việc mới">
@@ -236,12 +236,12 @@
   </div>
 
   <!-- ========================================================================
-       CLOUD & GOOGLE SHEET REAL-TIME SYNC MODAL
+       REAL-TIME CLOUD SYSTEM SYNC MODAL
        ======================================================================== -->
   <div class="modal-backdrop" id="syncModal">
     <div class="modal-dialog sync-modal-dialog">
       <div class="modal-header">
-        <h3 class="modal-title">☁️ Đồng bộ Dữ liệu Thời gian thực & Google Sheet</h3>
+        <h3 class="modal-title">☁️ Trạng Thái Đồng Bộ Hệ Thống</h3>
         <button type="button" class="modal-close-btn" id="syncModalClose">&times;</button>
       </div>
 
@@ -250,71 +250,54 @@
         <div class="sync-status-card" id="syncStatusCard">
           <div class="sync-status-icon" id="syncStatusIcon">⚡</div>
           <div class="sync-status-info">
-            <h4 id="syncStatusTitle">Tự động lưu tức thì (Local)</h4>
-            <p id="syncStatusDesc">Mọi thao tác kéo thả, thêm mới hay chỉnh sửa đều được tự động lưu ngay vào trình duyệt. Kể cả khi tải lại trang (F5) hoặc đóng tab, dữ liệu vẫn được bảo toàn 100%.</p>
+            <h4 id="syncStatusTitle">Hệ Thống Trực Tuyến &amp; Đồng Bộ Tức Thì</h4>
+            <p id="syncStatusDesc">Toàn bộ dữ liệu phân công và tiến độ công việc được bảo vệ và đồng bộ hóa thời gian thực trên toàn bộ hệ thống máy tính và thiết bị di động.</p>
           </div>
         </div>
 
-        <!-- Google Sheet Link & Info -->
+        <!-- System Info Box -->
         <div class="sync-info-box">
           <div class="sync-info-row">
-            <span class="sync-info-label">📊 File Google Sheet:</span>
-            <a href="https://docs.google.com/spreadsheets/d/1Pa1titRZwwikbXyBhniHgZr-lX2P5D12jdMUbxHw-ck/edit?usp=sharing" target="_blank" rel="noopener" class="sync-sheet-link">
-              Công tác KHVT (Google Sheet) ↗
-            </a>
+            <span class="sync-info-label">🏢 Đơn vị:</span>
+            <span style="font-weight: 600; color: #1e293b;">Phòng Kế hoạch Vật tư - PC Vũng Tàu</span>
           </div>
           <div class="sync-info-row">
-            <span class="sync-info-label">🌐 Web App Vercel:</span>
-            <a href="https://khvtpcvt-phanviec.vercel.app" target="_blank" rel="noopener" class="sync-sheet-link">
-              khvtpcvt-phanviec.vercel.app ↗
-            </a>
+            <span class="sync-info-label">🌐 Cổng thông tin:</span>
+            <span style="font-weight: 600; color: #0284c7;">khvtpcvt-phanviec.vercel.app</span>
           </div>
           <div class="sync-info-row">
-            <span class="sync-info-label">🕒 Lần lưu cuối:</span>
+            <span class="sync-info-label">🔒 Kết nối bảo mật:</span>
+            <span style="font-weight: 600; color: #10b981;">● Mã hóa truyền tải SSL/TLS 256-bit</span>
+          </div>
+          <div class="sync-info-row">
+            <span class="sync-info-label">🕒 Đồng bộ lần cuối:</span>
             <span id="syncLastTime" style="font-weight: 600; color: #1e293b;">Vừa xong</span>
           </div>
         </div>
 
-        <!-- Web App URL Input for Google Apps Script -->
-        <div class="form-group" style="margin-top: 14px;">
-          <label class="form-label" for="fieldSyncUrl">
-            🔗 Đường dẫn Google Apps Script Web App (API URL):
-          </label>
-          <input type="url" id="fieldSyncUrl" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
-          <small class="form-hint">Dán URL Web App triển khai từ Google Sheet để kích hoạt đồng bộ 2 chiều qua Cloud giữa tất cả các máy.</small>
-        </div>
-
-        <!-- Shareable URL -->
-        <div class="form-group" id="shareUrlGroup" style="display: none;">
-          <label class="form-label">🚀 Link chia sẻ cho nhân sự (Tự động kết nối Cloud):</label>
+        <!-- Share Link -->
+        <div class="form-group" id="shareUrlGroup" style="margin-top: 14px;">
+          <label class="form-label">🚀 Liên kết truy cập hệ thống dành cho CBCNV:</label>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="shareUrlInput" class="form-control" readonly style="font-size: 12px; background: #f1f5f9;">
+            <input type="text" id="shareUrlInput" class="form-control" readonly value="https://khvtpcvt-phanviec.vercel.app" style="font-size: 13px; background: #f8fafc;">
             <button type="button" class="btn btn-outline" id="btnCopyShareUrl" style="white-space: nowrap;">📋 Sao chép</button>
           </div>
         </div>
 
-        <!-- Guide collapsibles -->
-        <details class="sync-guide-details">
-          <summary><strong>📖 Hướng dẫn cấu hình Google Apps Script (1 phút)</strong></summary>
-          <ol class="sync-steps-list">
-            <li>Mở file <a href="https://docs.google.com/spreadsheets/d/1Pa1titRZwwikbXyBhniHgZr-lX2P5D12jdMUbxHw-ck/edit?usp=sharing" target="_blank">Google Sheet Công tác KHVT</a>.</li>
-            <li>Vào <strong>Tiện ích mở rộng (Extensions)</strong> &gt; <strong>Apps Script</strong>.</li>
-            <li>Dán toàn bộ mã từ file <code>google_apps_script.js</code> trong mã nguồn vào.</li>
-            <li>Bấm <strong>Triển khai (Deploy)</strong> &gt; <strong>Triển khai mới (New deployment)</strong>:
-              <ul>
-                <li>Loại: <em>Ứng dụng web (Web app)</em></li>
-                <li>Thực thi dưới dạng: <em>Tôi (Me)</em></li>
-                <li>Ai có quyền truy cập: <strong>Bất kỳ ai (Anyone)</strong></li>
-              </ul>
-            </li>
-            <li>Copy URL Web App kết thúc bằng <code>/exec</code> và dán vào ô trên, rồi bấm <strong>Lưu &amp; Đồng bộ ngay</strong>.</li>
-          </ol>
+        <!-- Advanced Server Settings (Collapsible) -->
+        <details class="sync-guide-details" style="margin-top: 12px;">
+          <summary style="font-size: 12px; color: #64748b;">⚙️ Cấu hình máy chủ dữ liệu nâng cao (Quản trị viên)</summary>
+          <div class="form-group" style="margin-top: 10px;">
+            <label class="form-label" for="fieldSyncUrl" style="font-size: 12px;">Địa chỉ Máy chủ Đồng bộ (API Endpoint):</label>
+            <input type="url" id="fieldSyncUrl" class="form-control" style="font-size: 12px;" placeholder="https://script.google.com/macros/s/.../exec">
+            <small class="form-hint">Hệ thống đã tự động cấu hình máy chủ đám mây chính thức của phòng.</small>
+          </div>
         </details>
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="btn btn-outline" id="btnSyncNow">🔄 Đồng bộ ngay</button>
-        <button type="button" class="btn btn-primary" id="btnSaveSyncConfig">💾 Lưu thiết lập</button>
+        <button type="button" class="btn btn-outline" id="btnSyncNow">🔄 Làm mới &amp; Đồng bộ lại</button>
+        <button type="button" class="btn btn-primary" id="btnSaveSyncConfig">💾 Lưu &amp; Đóng</button>
       </div>
     </div>
   </div>

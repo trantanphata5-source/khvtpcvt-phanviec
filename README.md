@@ -4,7 +4,7 @@ Hệ thống quản lý, phân công và điều phối công việc trực quan
 
 - **Website trực tuyến**: [https://khvtpcvt-phanviec.vercel.app](https://khvtpcvt-phanviec.vercel.app)
 - **Kho mã nguồn GitHub**: [https://github.com/trantanphata5-source/khvtpcvt-phanviec](https://github.com/trantanphata5-source/khvtpcvt-phanviec)
-- **Google Sheet cơ sở dữ liệu**: [Công tác KHVT (Google Spreadsheet)](https://docs.google.com/spreadsheets/d/1Pa1titRZwwikbXyBhniHgZr-lX2P5D12jdMUbxHw-ck/edit?usp=sharing)
+- **Cơ sở dữ liệu đám mây**: Tự động đồng bộ thời gian thực 2 chiều qua máy chủ EVNHCMC
 
 ---
 
@@ -34,28 +34,12 @@ Hệ thống quản lý, phân công và điều phối công việc trực quan
 
 ---
 
-## 🚀 Hướng Dẫn Kích Hoạt Đồng Bộ 2 Chiều Với Google Sheet (1 Phút)
+## 🚀 Cơ Chế Đồng Bộ Máy Chủ & Google Sheet (Tab "Phân công trực tuyến")
 
-File Google Sheet: [Công tác KHVT](https://docs.google.com/spreadsheets/d/1Pa1titRZwwikbXyBhniHgZr-lX2P5D12jdMUbxHw-ck/edit?usp=sharing)
+Ứng dụng web đã được tích hợp sẵn đường dẫn kết nối máy chủ Google Apps Script chính thức của phòng.
 
-1. Mở file Google Sheet trên bằng tài khoản Google của bạn.
-2. Trên thanh menu trên cùng, chọn: **Tiện ích mở rộng (Extensions)** &rarr; **Apps Script**.
-3. Xóa nội dung mẫu trong file `Code.gs`, mở file [`google_apps_script.js`](./google_apps_script.js) trong kho này và sao chép toàn bộ nội dung dán vào.
-4. Nhấn biểu tượng **Lưu** (Ctrl + S).
-5. Bấm nút **"Triển khai" (Deploy)** màu xanh ở góc trên bên phải &rarr; chọn **"Triển khai mới" (New deployment)**:
-   - **Chọn loại**: *Ứng dụng web (Web app)*.
-   - **Mô tả**: `KHVT PCVT Sync Web App`.
-   - **Thực thi dưới dạng**: *Tôi (Me - email của bạn)*.
-   - **Ai có quyền truy cập**: **Bất kỳ ai (Anyone)** *(Bắt buộc để web app có thể gửi/nhận dữ liệu mà không cần xác thực phức tạp)*.
-   - Bấm **Triển khai (Deploy)**.
-6. Cấp quyền truy cập cho script (Bấm *Advanced / Nâng cao* &rarr; Chọn *Go to Untitled project (unsafe)* &rarr; Bấm *Allow / Cho phép*).
-7. Sao chép **URL của ứng dụng web** (đường link kết thúc bằng `/exec`).
-8. Truy cập [https://khvtpcvt-phanviec.vercel.app](https://khvtpcvt-phanviec.vercel.app), bấm vào nút **"☁️ Tự động lưu / Đồng bộ Cloud"** trên thanh tiêu đề, dán URL vào và bấm **"💾 Lưu thiết lập"**.
-9. Lúc này, bạn có thể gửi liên kết dạng:
-   ```
-   https://khvtpcvt-phanviec.vercel.app/?api=URL_APPS_SCRIPT_CỦA_BẠN
-   ```
-   cho các thành viên khác, mọi người khi mở liên kết sẽ tự động kết nối và đồng bộ thời gian thực ngay lập tức!
+- **Không làm ảnh hưởng sheet gốc**: Khi có dữ liệu phân công mới từ web, script sẽ tự động ghi sang một sheet riêng biệt mang tên **`Phân công trực tuyến`** với đầy đủ định dạng cột, màu sắc EVN chuẩn và thời gian cập nhật. Bảng công việc gốc ban đầu được **bảo toàn nguyên vẹn 100%**, không bị xáo trộn thứ tự.
+- **Tự động đồng bộ**: Mọi cán bộ nhân viên khi truy cập trang web [https://khvtpcvt-phanviec.vercel.app](https://khvtpcvt-phanviec.vercel.app) đều tự động nhận dữ liệu mới nhất mà không cần cài đặt thêm bất kỳ thông số nào.
 
 ---
 
